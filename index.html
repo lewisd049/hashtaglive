@@ -3,83 +3,51 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Audio Crossfade Pro</title>
+<title>#LIVE Audio Player</title>
 <script src="https://unpkg.com/wavesurfer.js"></script>
 <style>
 :root {
-  --bg:#fefefe; --text:#111; --panel:#ffffff80; --accent:#2e86de; --muted:#888;
+  --bg:#111; --text:#fff; --panel:#222; --accent:#4aa3ff; --muted:#888;
 }
-body.dark { --bg:#1b1b1b; --text:#eee; --panel:#2a2a2a80; --accent:#4aa3ff; --muted:#999;}
+body.dark { --bg:#fefefe; --text:#111; --panel:#fff; --accent:#2e86de; --muted:#555;}
 body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial; background:var(--bg); color:var(--text); transition:0.3s;}
 main.app { max-width:980px; margin:20px auto; padding:20px; backdrop-filter:blur(4px);}
 header h1{margin:0 0 8px 0;font-size:1.3rem;}
 
 .top-right { position:fixed; top:10px; right:10px; display:flex; gap:10px; z-index:2200; align-items:center;}
-.btn { padding:6px 12px; border-radius:12px; border:none; background:rgba(255,255,255,0.4); backdrop-filter:blur(8px); cursor:pointer; font-size:14px; box-shadow:0 4px 12px rgba(0,0,0,0.06); transition:0.25s;}
-.btn:hover { background:rgba(255,255,255,0.55); transform:translateY(-1px);}
+.btn { padding:6px 12px; border-radius:12px; border:none; background:rgba(255,255,255,0.1); backdrop-filter:blur(8px); cursor:pointer; font-size:14px; box-shadow:0 4px 12px rgba(0,0,0,0.06); transition:0.25s;}
+.btn:hover { background:rgba(255,255,255,0.2); transform:translateY(-1px);}
 #fxToggle { right:140px; }
 
 #fxOverlay { position:fixed; inset:0; background:rgba(0,0,0,0.18); opacity:0; pointer-events:none; transition:0.3s; z-index:2080;}
 #fxOverlay.show { opacity:1; pointer-events:auto; backdrop-filter:blur(6px); }
 
-#fxPanel { position:fixed; top:0; right:-360px; width:360px; height:100vh; background:var(--panel); color:var(--text); box-shadow:-12px 0 36px rgba(0,0,0,0.15); transition:right 0.36s; z-index:2090; padding:18px; display:flex; flex-direction:column; gap:10px; overflow:auto; border-radius:24px 0 0 24px; backdrop-filter:blur(12px);}
+#fxPanel { position:fixed; top:0; right:-360px; width:360px; height:100vh; background:var(--panel); color:var(--text); box-shadow:-12px 0 36px rgba(0,0,0,0.3); transition:right 0.36s; z-index:2090; padding:18px; display:flex; flex-direction:column; gap:10px; overflow:auto; border-radius:24px 0 0 24px; backdrop-filter:blur(12px);}
 #fxPanel.show { right:0;}
 .fxHeader { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-.fxCloseBtn { background:none; border:none; font-size:20px; cursor:pointer; padding:6px; border-radius:50%; transition:0.25s; }
-.fxCloseBtn:hover { background: rgba(0,0,0,0.05); transform:scale(1.1);}
-.fxItem { padding:10px 14px; border-radius:16px; background:rgba(255,255,255,0.4); cursor:pointer; text-align:left; margin-bottom:6px; backdrop-filter:blur(8px); transition:0.25s; box-shadow:0 4px 12px rgba(0,0,0,0.06);}
-body.dark .fxItem { background:rgba(42,42,42,0.5); color:var(--text);}
-.fxItem:hover { transform:translateY(-2px) scale(1.02); background:rgba(255,255,255,0.55); }
+.fxCloseBtn { background:none; border:none; font-size:20px; cursor:pointer; padding:6px; border-radius:50%; transition:0.25s; color:var(--accent);}
+.fxCloseBtn:hover { transform:scale(1.1);}
+.fxItem { padding:10px 14px; border-radius:16px; background:rgba(255,255,255,0.1); cursor:pointer; text-align:left; margin-bottom:6px; backdrop-filter:blur(8px); transition:0.25s;}
+.fxItem:hover { transform:translateY(-2px) scale(1.02); background:rgba(255,255,255,0.2); }
 
 #mainArea { transition: opacity 0.28s, filter 0.28s; }
 #mainArea.hidden { opacity:0.06; pointer-events:none; filter:blur(4px) grayscale(0.12); }
 
 .controls { margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
-input[type=file]{padding:6px;border-radius:12px; border:none; background:rgba(255,255,255,0.4);backdrop-filter:blur(8px);}
-select{padding:6px; min-width:180px; border-radius:12px; border:none; background:rgba(255,255,255,0.4);backdrop-filter:blur(8px);}
-#waveform{margin:20px auto; width:90%; height:90px; cursor:pointer; border-radius:20px; box-shadow:0 4px 24px rgba(0,0,0,0.06);}
+input[type=file]{padding:6px;border-radius:12px; border:none; background:rgba(255,255,255,0.1);backdrop-filter:blur(8px);}
+select{padding:6px; min-width:180px; border-radius:12px; border:none; background:rgba(255,255,255,0.1);backdrop-filter:blur(8px);}
+#waveform{margin:20px auto; width:90%; height:90px; cursor:pointer; border-radius:20px; box-shadow:0 4px 24px rgba(0,0,0,0.3);}
 .note{margin-top:14px; color:var(--muted); font-style:italic;}
-#playlist{margin-top:12px; max-height:200px; overflow:auto; border-radius:16px; border:1px solid rgba(0,0,0,0.06); padding:6px; background:var(--panel);}
-#playlist li{padding:8px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.06);}
-#playlist li.active{background: rgba(46,134,222,0.12); color:var(--accent); font-weight:600;}
-
-/* WAVEFORM GLOW & ANIMATION */
-#waveform canvas {
-  border-radius: 20px;
-  box-shadow: 0 0 32px rgba(46,134,222,0.24), 0 0 64px rgba(46,134,222,0.16) inset;
-  transition: box-shadow 0.3s;
-}
-#waveform:hover canvas {
-  box-shadow: 0 0 48px rgba(46,134,222,0.35), 0 0 72px rgba(46,134,222,0.2) inset;
-}
+#playlist{margin-top:12px; max-height:200px; overflow:auto; border-radius:16px; border:1px solid rgba(255,255,255,0.1); padding:6px; background:var(--panel);}
+#playlist li{padding:8px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.1);}
+#playlist li.active{background: rgba(74,163,255,0.2); color:var(--accent); font-weight:600;}
 </style>
 </head>
 <body>
 <div id="fxOverlay" aria-hidden="true"></div>
-<div class="top-right">
-  <div id="fxToggle" class="btn">Sound Effects</div>
-  <div id="darkToggle" class="btn">Toggle Dark</div>
-</div>
-<aside id="fxPanel" aria-hidden="true">
-  <!-- Added close button -->
-  <button id="fxClose" class="fxItem" style="padding:8px 10px; border-radius:8px; margin-bottom:12px;">
-    ✕ Close
-  </button>
-  <div class="fxHeader">
-    <div style="font-weight:700">Sound Effects</div>
-  </div>
-  <label>Add audio files</label>
-  <input id="fxInput" type="file" accept="audio/*" multiple>
-  <label>SFX Volume</label>
-  <input id="fxVolume" type="range" min="0" max="1" step="0.01" value="1">
-  <div style="font-weight:700; margin-top:6px">Soundboard</div>
-  <div id="fxList"></div>
-  <div style="flex:1"></div>
-  <small style="color:gray">Sound effects play instantly, do not fade main player.</small>
-</aside>
 
 <main class="app" id="mainArea">
-  <header><h1>Audio Crossfade Pro</h1></header>
+  <header><h1>#LIVE Audio Player</h1></header>
   <section>
     <input id="fileInput" type="file" accept="audio/*" multiple>
     <select id="trackList"></select>
@@ -96,11 +64,8 @@ select{padding:6px; min-width:180px; border-radius:12px; border:none; background
       </label>
       <button id="saveBtn">💾 Save Playlist</button>
       <button id="loadBtn">📂 Load Playlist</button>
-
-      <!-- Added Open Soundboard button -->
-      <button id="openSfxBtn" class="fxItem" style="background:transparent; border:1px solid rgba(255,255,255,0.03);">
-        Open Soundboard
-      </button>
+      <!-- Open Soundboard button -->
+      <button id="openSfxBtn" class="fxItem" style="background:transparent; border:1px solid rgba(255,255,255,0.1);">Open Soundboard</button>
     </div>
   </section>
   <div id="waveform"></div>
@@ -110,71 +75,66 @@ select{padding:6px; min-width:180px; border-radius:12px; border:none; background
   </div>
 </main>
 
+<aside id="fxPanel" aria-hidden="true">
+  <!-- X close button -->
+  <button id="fxClose" class="fxCloseBtn">✕</button>
+  <div class="fxHeader">
+    <div style="font-weight:700">Sound Effects</div>
+  </div>
+  <label>Add audio files</label>
+  <input id="fxInput" type="file" accept="audio/*" multiple>
+  <label>SFX Volume</label>
+  <input id="fxVolume" type="range" min="0" max="1" step="0.01" value="1">
+  <div style="font-weight:700; margin-top:6px">Soundboard</div>
+  <div id="fxList"></div>
+</aside>
+
 <script>
-/* ==== MAIN PLAYER ==== */
-const waveform = WaveSurfer.create({ container:'#waveform', waveColor:'#999', progressColor:'#4aa3ff', height:90, cursorColor:'#333', interact:true, barWidth:3, barRadius:2, normalize:true, responsive:true });
-const fxToggle=document.getElementById('fxToggle'), fxPanel=document.getElementById('fxPanel'),
+const waveform = WaveSurfer.create({ container:'#waveform', waveColor:'#555', progressColor:'#4aa3ff', height:90, cursorColor:'#fff', interact:true, barWidth:3, barRadius:2, normalize:true, responsive:true });
+
+const fileInput=document.getElementById('fileInput'), trackList=document.getElementById('trackList'),
+      playBtn=document.getElementById('playBtn'), pauseBtn=document.getElementById('pauseBtn'),
+      volumeSlider=document.getElementById('volumeSlider'), muteBtn=document.getElementById('muteBtn'),
+      fadeInput=document.getElementById('fadeDuration'), saveBtn=document.getElementById('saveBtn'),
+      loadBtn=document.getElementById('loadBtn'), playlistEl=document.getElementById('playlist'),
+      mainArea=document.getElementById('mainArea'), openSfxBtn=document.getElementById('openSfxBtn'),
+      fxPanel=document.getElementById('fxPanel'), fxClose=document.getElementById('fxClose'),
       fxInput=document.getElementById('fxInput'), fxList=document.getElementById('fxList'), fxVolumeSlider=document.getElementById('fxVolume'),
-      fileInput=document.getElementById('fileInput'), trackList=document.getElementById('trackList'), playBtn=document.getElementById('playBtn'),
-      pauseBtn=document.getElementById('pauseBtn'), volumeSlider=document.getElementById('volumeSlider'), muteBtn=document.getElementById('muteBtn'),
-      fadeInput=document.getElementById('fadeDuration'), saveBtn=document.getElementById('saveBtn'), loadBtn=document.getElementById('loadBtn'),
-      playlistEl=document.getElementById('playlist'), mainArea=document.getElementById('mainArea'),
-      openSfxBtn=document.getElementById('openSfxBtn'), fxClose=document.getElementById('fxClose'),
       fxOverlay=document.getElementById('fxOverlay');
 
 let files=[], isMuted=false, savedVolume=1, isEnding=false;
 let fxVolume=parseFloat(fxVolumeSlider.value)||1, fxSounds=[];
 
-/* Dark mode */
-if(localStorage.getItem('darkMode')==='true') document.body.classList.add('dark');
-document.getElementById('darkToggle').onclick=()=>{ const v=document.body.classList.toggle('dark'); localStorage.setItem('darkMode',v?'true':'false'); };
+/* Dark mode toggle */
+document.body.classList.add('dark'); // default theme for #LIVE
 
-/* Volume/Mute */
-if(localStorage.getItem('volume')) savedVolume=parseFloat(localStorage.getItem('volume'));
-if(localStorage.getItem('muted')) isMuted=localStorage.getItem('muted')==='true';
-function updateVolume(){ waveform.setVolume(isMuted?0:savedVolume); muteBtn.textContent=isMuted?'🔇':'🔊'; localStorage.setItem('volume',savedVolume); localStorage.setItem('muted',isMuted);}
+/* Volume/mute */
+function updateVolume(){ waveform.setVolume(isMuted?0:savedVolume); muteBtn.textContent=isMuted?'🔇':'🔊';}
 volumeSlider.oninput=e=>{savedVolume=parseFloat(e.target.value); isMuted=savedVolume===0; updateVolume();}
 muteBtn.onclick=()=>{isMuted=!isMuted; updateVolume();}
 updateVolume();
 
 /* Playlist */
-saveBtn.onclick=()=>{ const names=files.map(f=>f.name); localStorage.setItem('playlistNames',JSON.stringify(names)); alert('Playlist saved. Re-upload to play.');};
-loadBtn.onclick=()=>{ const names=JSON.parse(localStorage.getItem('playlistNames')||'[]'); if(!names.length){alert('No playlist');return;} files=[]; trackList.innerHTML=''; playlistEl.innerHTML=''; names.forEach(name=>{ const opt=document.createElement('option'); opt.textContent=name+' (re-upload)'; opt.disabled=true; trackList.appendChild(opt); const li=document.createElement('li'); li.textContent=name+' (re-upload)'; playlistEl.appendChild(li); }); };
-
-/* File load */
-fileInput.onchange=e=>{ files=[...e.target.files]; renderTracks(); if(files.length) loadTrack(0); };
-function renderTracks(){ trackList.innerHTML=''; playlistEl.innerHTML=''; files.forEach((f,i)=>{ const opt=document.createElement('option'); opt.value=i; opt.textContent=f.name; trackList.appendChild(opt); const li=document.createElement('li'); li.textContent=f.name; li.dataset.index=i; li.onclick=()=>loadTrack(i); playlistEl.appendChild(li); }); }
+fileInput.onchange=e=>{ files=[...e.target.files]; renderTracks(); if(files.length) loadTrack(0);}
+function renderTracks(){ trackList.innerHTML=''; playlistEl.innerHTML=''; files.forEach((f,i)=>{ const opt=document.createElement('option'); opt.value=i; opt.textContent=f.name; trackList.appendChild(opt); const li=document.createElement('li'); li.textContent=f.name; li.dataset.index=i; li.onclick=()=>loadTrack(i); playlistEl.appendChild(li); });}
 trackList.onchange=()=>{ const i=parseInt(trackList.value); if(!isNaN(i)) loadTrack(i);}
 function highlightActive(i){document.querySelectorAll('#playlist li').forEach(el=>el.classList.toggle('active',parseInt(el.dataset.index)===i)); trackList.value=i;}
 function loadTrack(index){ const file=files[index]; if(!file) return; waveform.load(URL.createObjectURL(file)); highlightActive(index);}
 
-/* Fade util */
-function fade(from,to,dur){ return new Promise(resolve=>{ const steps=30; let c=0; const stepTime=(dur*1000)/steps; const step=()=>{c++; let v=from+((to-from)*c/steps); waveform.setVolume(isMuted?0:v); if(c<steps) setTimeout(step,stepTime); else resolve();}; step();}); }
+/* Fade */
+async function fade(from,to,dur){ return new Promise(resolve=>{ const steps=30; let c=0; const stepTime=(dur*1000)/steps; const step=()=>{ c++; waveform.setVolume(from+((to-from)*c/steps)); if(c<steps) setTimeout(step,stepTime); else resolve(); }; step();});}
 
-/* Play/Pause */
-playBtn.onclick=async()=>{ if(isEnding) return; const dur=parseFloat(fadeInput.value)||0; waveform.setVolume(0); waveform.play(); await fade(0,isMuted?0:savedVolume,dur);}
-pauseBtn.onclick=async()=>{ if(isEnding) return; const dur=parseFloat(fadeInput.value)||0; await fade(isMuted?0:savedVolume,0,dur); waveform.pause();}
+/* Play/pause */
+playBtn.onclick=async()=>{ if(isEnding) return; const dur=parseFloat(fadeInput.value)||0; waveform.setVolume(0); waveform.play(); await fade(0,savedVolume,dur);}
+pauseBtn.onclick=async()=>{ if(isEnding) return; const dur=parseFloat(fadeInput.value)||0; await fade(savedVolume,0,dur); waveform.pause();}
 
-/* Auto fade end */
-waveform.on('audioprocess',()=>{ const dur=waveform.getDuration()||0, cur=waveform.getCurrentTime()||0, rem=dur-cur, fadeDur=parseFloat(fadeInput.value)||2; if(!isEnding && dur>0 && rem<=fadeDur){ isEnding=true; playBtn.disabled=true; pauseBtn.disabled=true; fade(savedVolume,0,rem).then(()=>{ waveform.pause(); playBtn.disabled=false; pauseBtn.disabled=false; isEnding=false; }); }});
-
-/* FX PANEL OPEN/CLOSE */
-openSfxBtn.onclick = () => {
-  fxPanel.classList.add('show');
-  fxOverlay.classList.add('show');
-  fxPanel.setAttribute('aria-hidden', 'false');
-  fxOverlay.setAttribute('aria-hidden', 'false');
-};
-fxClose.onclick = () => {
-  fxPanel.classList.remove('show');
-  fxOverlay.classList.remove('show');
-  fxPanel.setAttribute('aria-hidden', 'true');
-  fxOverlay.setAttribute('aria-hidden', 'true');
-};
+/* Soundboard open/close */
+openSfxBtn.onclick = () => { fxPanel.classList.add('show'); fxOverlay.classList.add('show'); };
+fxClose.onclick = () => { fxPanel.classList.remove('show'); fxOverlay.classList.remove('show'); };
 fxOverlay.onclick = fxClose.onclick;
 
-/* FX audio load */
-fxInput.addEventListener('change',e=>{ const items=Array.from(e.target.files||[]); items.forEach(file=>{ const url=URL.createObjectURL(file); const audio=new Audio(url); audio.volume=fxVolume; const obj={name:file.name,url,audio}; fxSounds.push(obj); const btn=document.createElement('div'); btn.className='fxItem'; btn.textContent=file.name; btn.onclick=()=>{ obj.audio.currentTime=0; obj.audio.volume=fxVolume; obj.audio.play(); }; fxList.appendChild(btn); obj.btn=btn; }); fxInput.value=''; });
+/* Load SFX files manually */
+fxInput.addEventListener('change',e=>{ const items=Array.from(e.target.files||[]); items.forEach(file=>{ const url=URL.createObjectURL(file); const audio=new Audio(url); audio.volume=fxVolume; const obj={name:file.name,url,audio}; fxSounds.push(obj); const btn=document.createElement('div'); btn.className='fxItem'; btn.textContent=file.name; btn.onclick=()=>{ obj.audio.currentTime=0; obj.audio.volume=fxVolume; obj.audio.play(); }; fxList.appendChild(btn); }); fxInput.value=''; });
 fxVolumeSlider.addEventListener('input',e=>{ fxVolume=parseFloat(e.target.value); fxSounds.forEach(s=>s.audio.volume=fxVolume); });
 </script>
 </body>
