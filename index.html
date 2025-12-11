@@ -1,196 +1,410 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>#LIVE Audio Dashboard</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>#LIVE Audio Crossfade</title>
+
+<!-- WaveSurfer -->
+<script src="https://unpkg.com/wavesurfer.js"></script>
 
 <style>
-  body {
-    margin: 0;
-    background: #111;
-    color: white;
-    font-family: Arial, sans-serif;
-    text-align: center;
-    padding-bottom: 60px;
-  }
+:root{
+  --bg:#0b0f14;
+  --panel:rgba(255,255,255,0.03);
+  --card: rgba(255,255,255,0.03);
+  --text:#e9f1f7;
+  --muted:#9aa6b2;
+  --live:#ff3b6b; /* #LIVE accent */
+  --live-2:#ff6b94;
+}
+body{ margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Arial; background:linear-gradient(180deg,#050607 0%,var(--bg) 100%); color:var(--text); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;}
+main.app{ max-width:1050px; margin:20px auto; padding:22px; backdrop-filter: blur(6px); border-radius:14px; }
+.header { display:flex; align-items:center; gap:16px; margin-bottom:8px; }
+.logo { height:72px; width:auto; border-radius:12px; box-shadow:0 6px 24px rgba(0,0,0,0.6), 0 0 18px rgba(255,59,107,0.08) inset;}
+h1{ margin:0; font-size:1.3rem; letter-spacing:0.3px; }
+.subtitle{ color:var(--muted); margin-top:4px; font-size:0.9rem; }
 
-  header {
-    padding: 20px;
-    background: linear-gradient(90deg, #ff002f, #ff7b00);
-    box-shadow: 0 0 20px rgba(255,0,0,0.4);
-  }
+/* Top-right controls */
+.top-right { position:fixed; top:12px; right:12px; display:flex; gap:10px; z-index:2200; }
+.btn { padding:8px 12px; border-radius:12px; border:none; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); color:var(--text); cursor:pointer; font-weight:600; box-shadow: 0 6px 20px rgba(0,0,0,0.6);}
+.btn:hover{ transform:translateY(-2px); }
 
-  header img {
-    height: 100px;
-  }
+/* FX Panel */
+#fxOverlay{ position:fixed; inset:0; background:rgba(0,0,0,0.32); opacity:0; pointer-events:none; transition:0.28s; z-index:2080; }
+#fxOverlay.show{ opacity:1; pointer-events:auto; }
+#fxPanel{ position:fixed; top:0; right:-380px; width:380px; height:100vh; background:var(--card); box-shadow:-18px 30px 80px rgba(0,0,0,0.6); transition:right 0.36s; z-index:2090; padding:18px; border-radius:20px 0 0 20px; color:var(--text); }
+#fxPanel.show{ right:0; }
+.fxHeader{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.fxItem{ padding:10px 14px; border-radius:12px; background:rgba(255,255,255,0.02); margin-bottom:8px; cursor:pointer; }
+.fxItem:hover{ background:rgba(255,255,255,0.03); transform:translateY(-2px); }
 
-  h2 {
-    margin-top: 20px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
+/* Main controls */
+.controls{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+input[type=file]{ padding:8px; border-radius:10px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.03); color:var(--text); }
+select{ padding:8px 10px; border-radius:10px; background:rgba(255,255,255,0.02); color:var(--text); border:1px solid rgba(255,255,255,0.03); }
+#playBtn, #pauseBtn{ background:linear-gradient(180deg,var(--live),var(--live-2)); color:white; border:none; padding:10px 14px; border-radius:12px; font-weight:700; box-shadow:0 12px 30px rgba(255,59,107,0.12); cursor:pointer;}
+#pauseBtn{ background:transparent; border:1px solid rgba(255,255,255,0.04); color:var(--text); }
 
-  #controls button {
-    padding: 12px 20px;
-    margin: 10px;
-    font-size: 16px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    background: #ff002f;
-    color: white;
-    transition: 0.2s;
-  }
+/* Waveform */
+#waveform{ margin:20px auto; width:92%; height:96px; cursor:pointer; border-radius:16px; overflow:hidden; box-shadow: 0 18px 60px rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.03); }
 
-  #controls button:hover {
-    background: #ff405c;
-  }
+/* Playlist */
+#playlist{ margin-top:12px; max-height:260px; overflow:auto; border-radius:12px; padding:6px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)); border:1px solid rgba(255,255,255,0.02); }
+#playlist li{ padding:10px; cursor:pointer; list-style:none; border-bottom:1px solid rgba(255,255,255,0.02); color:var(--text); display:flex; justify-content:space-between; align-items:center; }
+#playlist li:hover{ background:rgba(255,255,255,0.01); }
+#playlist li.active{ background:linear-gradient(90deg, rgba(255,59,107,0.06), rgba(255,59,107,0.03)); color:var(--live); font-weight:700; }
 
-  .playlist {
-    margin-top: 25px;
-    text-align: left;
-    display: inline-block;
-    background: #222;
-    padding: 15px;
-    border-radius: 12px;
-    width: 280px;
-    box-shadow: 0 0 12px rgba(255,0,0,0.3);
-  }
+/* small */
+.note{ margin-top:14px; color:var(--muted); font-style:italic; font-size:0.95rem; }
 
-  .track {
-    padding: 8px;
-    border-radius: 6px;
-    cursor: pointer;
-    color: #ccc;
-  }
-
-  .track:hover {
-    background: #333;
-  }
-
-  .active {
-    background: #ff002f;
-    color: white;
-    font-weight: bold;
-  }
-
-  .slider-container {
-    margin-top: 25px;
-  }
-
-  #vol {
-    width: 200px;
-  }
+/* responsive */
+@media (max-width:720px){
+  .header{ flex-direction:column; align-items:flex-start; gap:8px; }
+  .logo{ height:56px; }
+  #fxPanel{ width:320px; }
+  main.app{ padding:16px; }
+}
 </style>
 </head>
-
 <body>
 
-<header>
-  <img src="logo.png" alt="#LIVE Logo">
-</header>
-
-<h2>#LIVE Audio Dashboard</h2>
-
-<audio id="player"></audio>
-
-<div id="controls">
-  <button onclick="prevTrack()">Prev</button>
-  <button onclick="togglePlay()" id="playBtn">Play</button>
-  <button onclick="nextTrack()">Next</button>
-  <button onclick="toggleLoop()" id="loopBtn">Loop: Off</button>
+<!-- FX overlay & panel -->
+<div id="fxOverlay" aria-hidden="true"></div>
+<div class="top-right">
+  <button id="fxToggle" class="btn">Soundboard</button>
+  <button id="darkToggle" class="btn">Theme</button>
 </div>
 
-<div class="slider-container">
-  <input type="range" id="vol" min="0" max="1" step="0.01" value="1">
-  <p>Volume</p>
-</div>
+<aside id="fxPanel" aria-hidden="true">
+  <div class="fxHeader">
+    <div style="font-weight:800">#LIVE Soundboard</div>
+    <button id="fxClose" class="btn" style="padding:6px 10px; border-radius:8px;">✕</button>
+  </div>
 
-<div class="playlist" id="playlistContainer">Loading songs…</div>
+  <label style="font-weight:700; display:block; margin-bottom:6px;">Add SFX</label>
+  <input id="fxInput" type="file" accept="audio/*" multiple>
+  <label style="display:block; margin-top:12px;">SFX Volume</label>
+  <input id="fxVolume" type="range" min="0" max="1" step="0.01" value="1">
+  <div style="font-weight:700; margin-top:12px;">Soundboard</div>
+  <div id="fxList" style="margin-top:8px;"></div>
+  <div style="flex:1"></div>
+  <small style="color:var(--muted)">SFX play instantly and do not crossfade the main player.</small>
+</aside>
+
+<main class="app" id="mainArea">
+  <header class="header">
+    <!-- Use your existing logo from your repo -->
+    <img class="logo" src="https://lewisd049.github.io/hashtaglive/logo.png" alt="#LIVE logo">
+    <div>
+      <h1>#LIVE Audio Crossfade</h1>
+      <div class="subtitle">Powered by Wavesurfer — hybrid playlist: manual + auto from GitHub Pages</div>
+    </div>
+  </header>
+
+  <section>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <input id="fileInput" type="file" accept="audio/*" multiple>
+      <select id="trackList" title="Select a track"></select>
+
+      <div class="controls" style="margin-left:auto;">
+        <button id="playBtn">▶ PLAY</button>
+        <button id="pauseBtn">▮▮ PAUSE</button>
+
+        <div style="display:inline-flex; align-items:center; gap:8px; margin-left:8px;">
+          <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1" title="Volume">
+          <span id="muteBtn" style="font-size:18px; cursor:pointer;">🔊</span>
+        </div>
+
+        <label style="display:inline-flex; align-items:center; gap:8px; margin-left:8px; color:var(--muted);">
+          Fade (s):
+          <input id="fadeDuration" type="number" min="0" step="0.1" value="2" style="width:60px; padding:6px; border-radius:8px; background:transparent; border:1px solid rgba(255,255,255,0.03); color:var(--text);">
+        </label>
+
+        <button id="saveBtn" class="btn" style="background:transparent; border:1px solid rgba(255,255,255,0.03);">Save</button>
+        <button id="loadBtn" class="btn" style="background:transparent; border:1px solid rgba(255,255,255,0.03);">Load</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="waveform"></div>
+  <ul id="playlist"></ul>
+
+  <div class="note">How it works: Manual pinned tracks load first, then additional .mp3 files from <code>hashtaglivesongs</code> are appended automatically. Click an item to play. Use the FX panel for instant SFX.</div>
+</main>
 
 <script>
-  const SONG_REPO = "https://lewisd049.github.io/hashtaglivesongs/";
-  const player = document.getElementById("player");
-  const playBtn = document.getElementById("playBtn");
-  const loopBtn = document.getElementById("loopBtn");
-  const playlistContainer = document.getElementById("playlistContainer");
-  const volumeSlider = document.getElementById("vol");
+/* ============ WaveSurfer setup ============ */
+const waveform = WaveSurfer.create({
+  container: '#waveform',
+  waveColor: '#2b3944',
+  progressColor: 'linear-gradient(90deg,#ff3b6b,#ff6b94)',
+  height: 96,
+  cursorColor: '#ffffff',
+  barWidth: 3,
+  barRadius: 2,
+  normalize: true,
+  responsive: true
+});
 
-  let playlist = [];
-  let currentIndex = 0;
+/* ============ UI elements ============ */
+const fxToggle = document.getElementById('fxToggle'), fxPanel = document.getElementById('fxPanel'),
+      fxClose = document.getElementById('fxClose'), fxInput = document.getElementById('fxInput'),
+      fxList = document.getElementById('fxList'), fxVolumeSlider = document.getElementById('fxVolume'),
+      fxOverlay = document.getElementById('fxOverlay'), darkToggle = document.getElementById('darkToggle'),
+      fileInput = document.getElementById('fileInput'), trackList = document.getElementById('trackList'),
+      playBtn = document.getElementById('playBtn'), pauseBtn = document.getElementById('pauseBtn'),
+      volumeSlider = document.getElementById('volumeSlider'), muteBtn = document.getElementById('muteBtn'),
+      fadeInput = document.getElementById('fadeDuration'), saveBtn = document.getElementById('saveBtn'),
+      loadBtn = document.getElementById('loadBtn'), playlistEl = document.getElementById('playlist'),
+      mainArea = document.getElementById('mainArea');
 
-  async function loadSongs() {
-    try {
-      let res = await fetch(SONG_REPO);
-      let text = await res.text();
+let manualPlaylist = [
+  // Manually pinned entries (edit these names or add full URLs)
+  // If you want a manual entry coming from your pages, put only file name (the script will build the pages URL)
+  // e.g. { title: "Pinned Intro", url: "intro.mp3" } will map to https://lewisd049.github.io/hashtaglivesongs/intro.mp3
+  { title: "Pinned Live SFX", url: "Live-SFX.mp3" }
+];
 
-      let mp3files = [...text.matchAll(/href="([^"]+\.mp3)"/g)].map(m => m[1]);
+let playlist = []; // final merged playlist
+let currentIndex = -1;
+let files = []; // local uploads (file objects)
+let isMuted = false;
+let savedVolume = parseFloat(localStorage.getItem('volume')||1);
+let isEnding = false;
 
-      playlist = mp3files.map(f => ({
-        title: decodeURIComponent(f.replace(".mp3", "")),
-        url: SONG_REPO + f
-      }));
+/* ============ Utility: build pages URL ============ */
+function pagesUrlFor(name){
+  return 'https://lewisd049.github.io/hashtaglivesongs/' + encodeURIComponent(name);
+}
 
-      renderPlaylist();
-      loadTrack(0);
-    } catch (err) {
-      playlistContainer.innerHTML = "Error loading songs.";
+/* ============ Load manual playlist into merged playlist ============ */
+function seedManual(){
+  playlist = [];
+  manualPlaylist.forEach(item=>{
+    // If url looks like a plain filename (no protocol), map to pages URL
+    let url = item.url;
+    if(url && !/^https?:\/\//i.test(url)){
+      url = pagesUrlFor(url);
     }
-  }
+    playlist.push({ title: item.title || (item.url||'untitled'), url });
+  });
+}
 
-  function renderPlaylist() {
-    playlistContainer.innerHTML = "";
-    playlist.forEach((track, i) => {
-      const div = document.createElement("div");
-      div.className = "track" + (i === currentIndex ? " active" : "");
-      div.innerText = track.title;
-      div.onclick = () => loadTrack(i);
-      playlistContainer.appendChild(div);
+/* ============ Fetch .mp3 files from the hashtaglivesongs repo via GitHub API ============ */
+async function fetchFromGitHubContents(){
+  const api = 'https://api.github.com/repos/lewisd049/hashtaglivesongs/contents/';
+  try{
+    const res = await fetch(api);
+    if(!res.ok) {
+      console.warn('GitHub API returned', res.status);
+      return [];
+    }
+    const data = await res.json();
+    // data is array; find .mp3 files
+    const mp3s = data.filter(f => f.type === 'file' && /\.mp3$/i.test(f.name)).map(f => ({ name: f.name, url: pagesUrlFor(f.name) }));
+    return mp3s;
+  }catch(err){
+    console.warn('Failed to fetch GitHub contents', err);
+    return [];
+  }
+}
+
+/* ============ Merge lists (manual first, then remote; dedupe by filename) ============ */
+async function buildPlaylist(){
+  seedManual();
+  const remote = await fetchFromGitHubContents();
+  // Add remote files that are not already present (by last path segment)
+  const existingNames = new Set(playlist.map(p => decodeURIComponent(p.url.split('/').pop()).toLowerCase()));
+  remote.forEach(r=>{
+    const nm = decodeURIComponent(r.name).toLowerCase();
+    if(!existingNames.has(nm)){
+      playlist.push({ title: r.name, url: r.url });
+      existingNames.add(nm);
+    }
+  });
+  renderPlaylistUI();
+}
+
+/* ============ Render playlist UI ============ */
+function renderPlaylistUI(){
+  trackList.innerHTML = '';
+  playlistEl.innerHTML = '';
+  playlist.forEach((t,i)=>{
+    const opt = document.createElement('option'); opt.value = i; opt.textContent = t.title;
+    trackList.appendChild(opt);
+    const li = document.createElement('li'); li.textContent = t.title; li.dataset.index = i;
+    const right = document.createElement('span'); right.style.opacity = 0.7; right.style.fontSize = '0.9rem';
+    right.textContent = '▶';
+    li.appendChild(right);
+    li.onclick = ()=> loadTrack(i);
+    playlistEl.appendChild(li);
+  });
+}
+
+/* ============ Load a track by index ============ */
+function highlightActive(i){
+  document.querySelectorAll('#playlist li').forEach(el=>el.classList.toggle('active', parseInt(el.dataset.index)===i));
+  trackList.value = i;
+}
+function loadTrack(index){
+  if(index < 0 || index >= playlist.length) return;
+  currentIndex = index;
+  const entry = playlist[index];
+  waveform.load(entry.url);
+  highlightActive(index);
+  // start playing when ready
+  waveform.once('ready', ()=> {
+    waveform.play();
+    playBtn.textContent = '▶ PLAY';
+  });
+}
+
+/* ============ Play / Pause with crossfade utility ============ */
+function setWaveVolume(v){ waveform.setVolume(isMuted?0:v); }
+
+function fade(from, to, dur){
+  return new Promise(res => {
+    const steps = 30;
+    let c = 0;
+    const stepTime = (dur*1000)/steps;
+    const tick = () => {
+      c++;
+      const v = from + ((to-from) * (c/steps));
+      waveform.setVolume(isMuted?0:v);
+      if(c < steps) setTimeout(tick, stepTime);
+      else res();
+    };
+    tick();
+  });
+}
+
+playBtn.onclick = async () => {
+  if(currentIndex === -1 && playlist.length) loadTrack(0);
+  const dur = parseFloat(fadeInput.value) || 0;
+  waveform.setVolume(0);
+  waveform.play();
+  await fade(0, savedVolume, dur);
+};
+pauseBtn.onclick = async () => {
+  const dur = parseFloat(fadeInput.value) || 0;
+  await fade(savedVolume, 0, dur);
+  waveform.pause();
+};
+
+/* Auto crossfade at track end */
+waveform.on('audioprocess', ()=> {
+  const dur = waveform.getDuration() || 0;
+  const cur = waveform.getCurrentTime() || 0;
+  const rem = dur - cur;
+  const fadeDur = parseFloat(fadeInput.value) || 2;
+  if(!isEnding && dur > 0 && rem <= fadeDur){
+    isEnding = true;
+    // protect UI briefly
+    playBtn.disabled = true; pauseBtn.disabled = true;
+    fade(savedVolume, 0, rem).then(()=> {
+      waveform.pause();
+      playBtn.disabled = false; pauseBtn.disabled = false;
+      isEnding = false;
+      // next track automatically
+      const next = (currentIndex + 1) % playlist.length;
+      loadTrack(next);
     });
   }
+});
 
-  function loadTrack(i) {
-    currentIndex = i;
-    player.src = playlist[currentIndex].url;
-    renderPlaylist();
-    player.play();
-    playBtn.innerText = "Pause";
+/* ============ Volume & mute ============ */
+volumeSlider.oninput = (e) => { savedVolume = parseFloat(e.target.value); localStorage.setItem('volume', savedVolume); setWaveVolume(savedVolume); };
+muteBtn.onclick = () => { isMuted = !isMuted; setWaveVolume(savedVolume); muteBtn.textContent = isMuted ? '🔇' : '🔊'; localStorage.setItem('muted', isMuted?'1':'0'); };
+if(localStorage.getItem('muted')==='1'){ isMuted = true; muteBtn.textContent = '🔇'; }
+
+/* ============ Track select & file upload ============ */
+trackList.onchange = ()=> {
+  const i = parseInt(trackList.value);
+  if(!isNaN(i)) loadTrack(i);
+};
+fileInput.onchange = (e) => {
+  files = [...e.target.files];
+  // convert local uploads into playlist entries with blob URLs at top of list
+  files.forEach(f=>{
+    const blobUrl = URL.createObjectURL(f);
+    // push to playlist so user can play local uploads
+    playlist.unshift({ title: f.name, url: blobUrl });
+  });
+  renderPlaylistUI();
+  if(playlist.length) loadTrack(0);
+};
+
+/* ============ Save / Load playlist (localStorage for list of filenames) ============ */
+saveBtn.onclick = () => {
+  // Save only remote/pinned filenames (not blob URLs)
+  const saveNames = playlist.map(p=>{
+    try {
+      const u = new URL(p.url);
+      return decodeURIComponent(u.pathname.split('/').pop());
+    } catch(e){ return null; }
+  }).filter(Boolean);
+  localStorage.setItem('live_playlist_names', JSON.stringify(saveNames));
+  alert('Playlist names saved locally. Re-upload local files if needed.');
+};
+loadBtn.onclick = async () => {
+  const names = JSON.parse(localStorage.getItem('live_playlist_names')||'[]');
+  if(!names.length){ alert('No saved playlist'); return; }
+  // rebuild playlist from saved names (map to pages urls)
+  manualPlaylist = names.map(n=>{
+    return { title: n, url: n };
+  });
+  await buildPlaylist();
+  alert('Loaded saved playlist names and refreshed remote additions.');
+};
+
+/* ============ Sound Effects (FX) panel ============ */
+let fxVolume = parseFloat(fxVolumeSlider.value) || 1;
+let fxSounds = [];
+fxToggle.onclick = () => {
+  const showing = fxPanel.classList.toggle('show');
+  fxOverlay.classList.toggle('show', showing);
+  fxPanel.setAttribute('aria-hidden', showing ? 'false' : 'true');
+  mainArea.classList.toggle('hidden', showing);
+};
+fxClose.onclick = () => { fxPanel.classList.remove('show'); fxOverlay.classList.remove('show'); mainArea.classList.remove('hidden'); };
+
+fxInput.addEventListener('change', (e) => {
+  const items = Array.from(e.target.files||[]);
+  items.forEach(file => {
+    const url = URL.createObjectURL(file);
+    const audio = new Audio(url);
+    audio.volume = fxVolume;
+    const obj = { name: file.name, url, audio };
+    fxSounds.push(obj);
+    const btn = document.createElement('div'); btn.className = 'fxItem'; btn.textContent = file.name;
+    btn.onclick = () => { obj.audio.currentTime = 0; obj.audio.volume = fxVolume; obj.audio.play(); };
+    fxList.appendChild(btn);
+    obj.btn = btn;
+  });
+  fxInput.value = '';
+});
+fxVolumeSlider.addEventListener('input', (e) => { fxVolume = parseFloat(e.target.value); fxSounds.forEach(s=>s.audio.volume = fxVolume); });
+
+/* keyboard support: space toggles play/pause */
+document.addEventListener('keydown', e => {
+  if(e.code === 'Space' && !e.target.matches('input, textarea')) {
+    e.preventDefault();
+    if(waveform.isPlaying()) pauseBtn.onclick();
+    else playBtn.onclick();
   }
+});
 
-  function togglePlay() {
-    if (player.paused) {
-      player.play();
-      playBtn.innerText = "Pause";
-    } else {
-      player.pause();
-      playBtn.innerText = "Play";
-    }
-  }
-
-  function nextTrack() {
-    currentIndex = (currentIndex + 1) % playlist.length;
-    loadTrack(currentIndex);
-  }
-
-  function prevTrack() {
-    currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-    loadTrack(currentIndex);
-  }
-
-  function toggleLoop() {
-    player.loop = !player.loop;
-    loopBtn.innerText = "Loop: " + (player.loop ? "On" : "Off");
-  }
-
-  player.onended = () => {
-    if (!player.loop) nextTrack();
-  };
-
-  volumeSlider.oninput = () => {
-    player.volume = volumeSlider.value;
-  };
-
-  loadSongs();
+/* ============ Initial build ============ */
+(async function init(){
+  // seed playlist from manual + remote
+  await buildPlaylist();
+  // set initial UI volume and state
+  volumeSlider.value = savedVolume;
+  setWaveVolume(savedVolume);
+  // if playlist has items, preload first
+  if(playlist.length) loadTrack(0);
+})();
 </script>
 
 </body>
