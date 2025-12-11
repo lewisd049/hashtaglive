@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>#LIVE Audio Crossfade</title>
+<title>#LIVE Audio Crossfade + SFX</title>
 
 <!-- WaveSurfer -->
 <script src="https://unpkg.com/wavesurfer.js"></script>
@@ -15,25 +15,21 @@
   --card: rgba(255,255,255,0.03);
   --text:#e9f1f7;
   --muted:#9aa6b2;
-  --live:#ff3b6b; /* #LIVE accent */
+  --live:#ff3b6b;
   --live-2:#ff6b94;
+  --accent:#4aa3ff;
 }
-body{ margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Arial; background:linear-gradient(180deg,#050607 0%,var(--bg) 100%); color:var(--text); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;}
+body{ margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Arial; background:linear-gradient(180deg,#050607 0%,var(--bg) 100%); color:var(--text); -webkit-font-smoothing:antialiased;}
 main.app{ max-width:1050px; margin:20px auto; padding:22px; backdrop-filter: blur(6px); border-radius:14px; }
 .header { display:flex; align-items:center; gap:16px; margin-bottom:8px; }
 .logo { height:72px; width:auto; border-radius:12px; box-shadow:0 6px 24px rgba(0,0,0,0.6), 0 0 18px rgba(255,59,107,0.08) inset;}
 h1{ margin:0; font-size:1.3rem; letter-spacing:0.3px; }
 .subtitle{ color:var(--muted); margin-top:4px; font-size:0.9rem; }
 
-/* Top-right controls */
-.top-right { position:fixed; top:12px; right:12px; display:flex; gap:10px; z-index:2200; }
-.btn { padding:8px 12px; border-radius:12px; border:none; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); color:var(--text); cursor:pointer; font-weight:600; box-shadow: 0 6px 20px rgba(0,0,0,0.6);}
-.btn:hover{ transform:translateY(-2px); }
-
-/* FX Panel */
+/* FX Panel (drawer) - theme & soundboard controls live inside here now */
 #fxOverlay{ position:fixed; inset:0; background:rgba(0,0,0,0.32); opacity:0; pointer-events:none; transition:0.28s; z-index:2080; }
 #fxOverlay.show{ opacity:1; pointer-events:auto; }
-#fxPanel{ position:fixed; top:0; right:-380px; width:380px; height:100vh; background:var(--card); box-shadow:-18px 30px 80px rgba(0,0,0,0.6); transition:right 0.36s; z-index:2090; padding:18px; border-radius:20px 0 0 20px; color:var(--text); }
+#fxPanel{ position:fixed; top:0; right:-420px; width:420px; height:100vh; background:var(--card); box-shadow:-18px 30px 80px rgba(0,0,0,0.6); transition:right 0.36s; z-index:2090; padding:18px; border-radius:20px 0 0 20px; color:var(--text); display:flex; flex-direction:column; }
 #fxPanel.show{ right:0; }
 .fxHeader{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
 .fxItem{ padding:10px 14px; border-radius:12px; background:rgba(255,255,255,0.02); margin-bottom:8px; cursor:pointer; }
@@ -55,50 +51,68 @@ select{ padding:8px 10px; border-radius:10px; background:rgba(255,255,255,0.02);
 #playlist li:hover{ background:rgba(255,255,255,0.01); }
 #playlist li.active{ background:linear-gradient(90deg, rgba(255,59,107,0.06), rgba(255,59,107,0.03)); color:var(--live); font-weight:700; }
 
-/* small */
+/* Soundboard grid */
+#sfxGrid{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:10px; }
+.sfxBtn{ padding:10px 12px; border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); cursor:pointer; text-align:left; font-weight:600; }
+.sfxBtn:hover{ transform:translateY(-3px); background:rgba(255,255,255,0.03); }
+
+/* small text */
 .note{ margin-top:14px; color:var(--muted); font-style:italic; font-size:0.95rem; }
 
 /* responsive */
 @media (max-width:720px){
   .header{ flex-direction:column; align-items:flex-start; gap:8px; }
   .logo{ height:56px; }
-  #fxPanel{ width:320px; }
+  #fxPanel{ width:340px; }
   main.app{ padding:16px; }
 }
 </style>
 </head>
 <body>
 
-<!-- FX overlay & panel -->
+<!-- overlay & fxPanel drawer -->
 <div id="fxOverlay" aria-hidden="true"></div>
-<div class="top-right">
-  <button id="fxToggle" class="btn">Soundboard</button>
-  <button id="darkToggle" class="btn">Theme</button>
-</div>
 
 <aside id="fxPanel" aria-hidden="true">
   <div class="fxHeader">
-    <div style="font-weight:800">#LIVE Soundboard</div>
-    <button id="fxClose" class="btn" style="padding:6px 10px; border-radius:8px;">✕</button>
+    <div style="font-weight:800">#LIVE Soundboard & Theme</div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button id="fxClose" class="fxItem" style="padding:8px 10px; border-radius:8px;">Close ✕</button>
+    </div>
   </div>
 
-  <label style="font-weight:700; display:block; margin-bottom:6px;">Add SFX</label>
-  <input id="fxInput" type="file" accept="audio/*" multiple>
-  <label style="display:block; margin-top:12px;">SFX Volume</label>
-  <input id="fxVolume" type="range" min="0" max="1" step="0.01" value="1">
-  <div style="font-weight:700; margin-top:12px;">Soundboard</div>
-  <div id="fxList" style="margin-top:8px;"></div>
+  <!-- THEME -->
+  <div style="margin-bottom:8px;">
+    <label style="font-weight:700; display:block; margin-bottom:6px;">Theme</label>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button id="darkToggle" class="fxItem" style="padding:8px 12px;">Toggle Dark</button>
+      <button id="miniTheme" class="fxItem" style="padding:8px 12px;">#LIVE Accent</button>
+    </div>
+  </div>
+
+  <!-- SFX Upload & Autoload -->
+  <div style="margin-top:10px;">
+    <label style="font-weight:700; display:block; margin-bottom:6px;">Add Local SFX</label>
+    <input id="fxInput" type="file" accept="audio/*" multiple>
+    <label style="display:block; margin-top:12px;">SFX Volume</label>
+    <input id="fxVolume" type="range" min="0" max="1" step="0.01" value="1">
+  </div>
+
+  <!-- Soundboard -->
+  <div style="font-weight:700; margin-top:12px;">Soundboard (auto + pinned)</div>
+  <div id="sfxGrid" aria-live="polite" style="margin-top:8px;"></div>
+
   <div style="flex:1"></div>
-  <small style="color:var(--muted)">SFX play instantly and do not crossfade the main player.</small>
+  <small style="color:var(--muted);">SFX are merged from manual pins and remote folder: <code>/hashtaglivesongs/sfx</code></small>
 </aside>
 
 <main class="app" id="mainArea">
   <header class="header">
-    <!-- Use your existing logo from your repo -->
+    <!-- Logo -->
     <img class="logo" src="https://lewisd049.github.io/hashtaglive/logo.png" alt="#LIVE logo">
     <div>
       <h1>#LIVE Audio Crossfade</h1>
-      <div class="subtitle">Powered by Wavesurfer — hybrid playlist: manual + auto from GitHub Pages</div>
+      <div class="subtitle">Main player + hybrid playlist. Open the Soundboard drawer to access theme & SFX.</div>
     </div>
   </header>
 
@@ -121,8 +135,9 @@ select{ padding:8px 10px; border-radius:10px; background:rgba(255,255,255,0.02);
           <input id="fadeDuration" type="number" min="0" step="0.1" value="2" style="width:60px; padding:6px; border-radius:8px; background:transparent; border:1px solid rgba(255,255,255,0.03); color:var(--text);">
         </label>
 
-        <button id="saveBtn" class="btn" style="background:transparent; border:1px solid rgba(255,255,255,0.03);">Save</button>
-        <button id="loadBtn" class="btn" style="background:transparent; border:1px solid rgba(255,255,255,0.03);">Load</button>
+        <button id="openSfxBtn" class="fxItem" style="background:transparent; border:1px solid rgba(255,255,255,0.03);">Open Soundboard</button>
+        <button id="saveBtn" class="fxItem" style="background:transparent; border:1px solid rgba(255,255,255,0.03);">Save</button>
+        <button id="loadBtn" class="fxItem" style="background:transparent; border:1px solid rgba(255,255,255,0.03);">Load</button>
       </div>
     </div>
   </section>
@@ -130,7 +145,7 @@ select{ padding:8px 10px; border-radius:10px; background:rgba(255,255,255,0.02);
   <div id="waveform"></div>
   <ul id="playlist"></ul>
 
-  <div class="note">How it works: Manual pinned tracks load first, then additional .mp3 files from <code>hashtaglivesongs</code> are appended automatically. Click an item to play. Use the FX panel for instant SFX.</div>
+  <div class="note">How it works: Manual pinned tracks load first; additional .mp3 files from <code>hashtaglivesongs</code> are appended. Soundboard auto-finds SFX in <code>/hashtaglivesongs/sfx</code> and merges with pinned + local uploads.</div>
 </main>
 
 <script>
@@ -138,7 +153,7 @@ select{ padding:8px 10px; border-radius:10px; background:rgba(255,255,255,0.02);
 const waveform = WaveSurfer.create({
   container: '#waveform',
   waveColor: '#2b3944',
-  progressColor: 'linear-gradient(90deg,#ff3b6b,#ff6b94)',
+  progressColor: '#ff3b6b',
   height: 96,
   cursorColor: '#ffffff',
   barWidth: 3,
@@ -147,86 +162,118 @@ const waveform = WaveSurfer.create({
   responsive: true
 });
 
-/* ============ UI elements ============ */
-const fxToggle = document.getElementById('fxToggle'), fxPanel = document.getElementById('fxPanel'),
-      fxClose = document.getElementById('fxClose'), fxInput = document.getElementById('fxInput'),
-      fxList = document.getElementById('fxList'), fxVolumeSlider = document.getElementById('fxVolume'),
-      fxOverlay = document.getElementById('fxOverlay'), darkToggle = document.getElementById('darkToggle'),
-      fileInput = document.getElementById('fileInput'), trackList = document.getElementById('trackList'),
-      playBtn = document.getElementById('playBtn'), pauseBtn = document.getElementById('pauseBtn'),
-      volumeSlider = document.getElementById('volumeSlider'), muteBtn = document.getElementById('muteBtn'),
-      fadeInput = document.getElementById('fadeDuration'), saveBtn = document.getElementById('saveBtn'),
-      loadBtn = document.getElementById('loadBtn'), playlistEl = document.getElementById('playlist'),
+/* ============ Elements ============ */
+const fxOverlay = document.getElementById('fxOverlay'),
+      fxPanel = document.getElementById('fxPanel'),
+      fxClose = document.getElementById('fxClose'),
+      openSfxBtn = document.getElementById('openSfxBtn'),
+      fxInput = document.getElementById('fxInput'),
+      fxGrid = document.getElementById('sfxGrid'),
+      fxVolumeSlider = document.getElementById('fxVolume'),
+      darkToggle = document.getElementById('darkToggle'),
+      miniTheme = document.getElementById('miniTheme'),
+      fileInput = document.getElementById('fileInput'),
+      trackList = document.getElementById('trackList'),
+      playBtn = document.getElementById('playBtn'),
+      pauseBtn = document.getElementById('pauseBtn'),
+      volumeSlider = document.getElementById('volumeSlider'),
+      muteBtn = document.getElementById('muteBtn'),
+      fadeInput = document.getElementById('fadeDuration'),
+      saveBtn = document.getElementById('saveBtn'),
+      loadBtn = document.getElementById('loadBtn'),
+      playlistEl = document.getElementById('playlist'),
       mainArea = document.getElementById('mainArea');
 
 let manualPlaylist = [
-  // Manually pinned entries (edit these names or add full URLs)
-  // If you want a manual entry coming from your pages, put only file name (the script will build the pages URL)
-  // e.g. { title: "Pinned Intro", url: "intro.mp3" } will map to https://lewisd049.github.io/hashtaglivesongs/intro.mp3
   { title: "Pinned Live SFX", url: "Live-SFX.mp3" }
 ];
 
-let playlist = []; // final merged playlist
+let manualSfx = [
+  // add pinned SFX file names or full URLs here; plain filenames map to the sfx pages folder
+  // e.g. { title: "Airhorn", url: "airhorn.mp3" }
+  { title: "Pinned Horn", url: "horn.mp3" }
+];
+
+let playlist = []; // main audio playlist
 let currentIndex = -1;
-let files = []; // local uploads (file objects)
+let files = []; // local uploads for main player
 let isMuted = false;
 let savedVolume = parseFloat(localStorage.getItem('volume')||1);
 let isEnding = false;
 
-/* ============ Utility: build pages URL ============ */
-function pagesUrlFor(name){
-  return 'https://lewisd049.github.io/hashtaglivesongs/' + encodeURIComponent(name);
-}
+/* SFX state */
+let sfxList = []; // merged list of sfx entries { title, url }
+let sfxLocal = []; // local uploaded SFX objects {name,url,audio}
+let fxVol = parseFloat(localStorage.getItem('fx_vol')||1);
 
-/* ============ Load manual playlist into merged playlist ============ */
-function seedManual(){
+/* ============ Helpers: build pages URLS ============ */
+function pagesUrlForSongs(name){ return 'https://lewisd049.github.io/hashtaglivesongs/' + encodeURIComponent(name); }
+function pagesUrlForSfx(name){ return 'https://lewisd049.github.io/hashtaglivesongs/sfx/' + encodeURIComponent(name); }
+
+/* ============ Seed manual playlist & sfx ============ */
+function seedManualPlaylist(){
   playlist = [];
   manualPlaylist.forEach(item=>{
-    // If url looks like a plain filename (no protocol), map to pages URL
     let url = item.url;
-    if(url && !/^https?:\/\//i.test(url)){
-      url = pagesUrlFor(url);
-    }
-    playlist.push({ title: item.title || (item.url||'untitled'), url });
+    if(url && !/^https?:\/\//i.test(url)) url = pagesUrlForSongs(url);
+    playlist.push({ title: item.title || item.url || 'untitled', url });
+  });
+}
+function seedManualSfx(){
+  sfxList = [];
+  manualSfx.forEach(item=>{
+    let url = item.url;
+    if(url && !/^https?:\/\//i.test(url)) url = pagesUrlForSfx(url);
+    sfxList.push({ title: item.title || item.url || 'sfx', url });
   });
 }
 
-/* ============ Fetch .mp3 files from the hashtaglivesongs repo via GitHub API ============ */
-async function fetchFromGitHubContents(){
-  const api = 'https://api.github.com/repos/lewisd049/hashtaglivesongs/contents/';
+/* ============ Fetch remote files via GitHub API ============ */
+async function fetchRemoteFiles(apiUrl){
   try{
-    const res = await fetch(api);
-    if(!res.ok) {
-      console.warn('GitHub API returned', res.status);
-      return [];
-    }
+    const res = await fetch(apiUrl);
+    if(!res.ok){ console.warn('GitHub API', res.status); return []; }
     const data = await res.json();
-    // data is array; find .mp3 files
-    const mp3s = data.filter(f => f.type === 'file' && /\.mp3$/i.test(f.name)).map(f => ({ name: f.name, url: pagesUrlFor(f.name) }));
-    return mp3s;
-  }catch(err){
-    console.warn('Failed to fetch GitHub contents', err);
+    return data.filter(f => f.type === 'file').map(f => ({ name:f.name, download_url: f.download_url || null }));
+  }catch(e){
+    console.warn('Failed GitHub fetch', e);
     return [];
   }
 }
 
-/* ============ Merge lists (manual first, then remote; dedupe by filename) ============ */
+/* ============ Build main playlist (manual first, then remote) ============ */
 async function buildPlaylist(){
-  seedManual();
-  const remote = await fetchFromGitHubContents();
-  // Add remote files that are not already present (by last path segment)
-  const existingNames = new Set(playlist.map(p => decodeURIComponent(p.url.split('/').pop()).toLowerCase()));
-  remote.forEach(r=>{
-    const nm = decodeURIComponent(r.name).toLowerCase();
-    if(!existingNames.has(nm)){
-      playlist.push({ title: r.name, url: r.url });
-      existingNames.add(nm);
-    }
+  seedManualPlaylist();
+  // fetch remote song files in root of hashtaglivesongs
+  const apiSongs = 'https://api.github.com/repos/lewisd049/hashtaglivesongs/contents/';
+  const remote = await fetchRemoteFiles(apiSongs);
+  const mp3s = remote.filter(r => /\.mp3$/i.test(r.name)).map(r => ({ name: r.name, url: pagesUrlForSongs(r.name) }));
+  // dedupe by filename
+  const existing = new Set(playlist.map(p => decodeURIComponent(p.url.split('/').pop()).toLowerCase()));
+  mp3s.forEach(m=>{
+    const nm = decodeURIComponent(m.name).toLowerCase();
+    if(!existing.has(nm)){ playlist.push({ title: m.name, url: m.url }); existing.add(nm); }
   });
   renderPlaylistUI();
 }
 
-/* ============ Render playlist UI ============ */
+/* ============ Build SFX list (manual pins + remote sfx folder) ============ */
+async function buildSfx(){
+  seedManualSfx();
+  const apiSfx = 'https://api.github.com/repos/lewisd049/hashtaglivesongs/contents/sfx';
+  const remote = await fetchRemoteFiles(apiSfx);
+  // accept .mp3 and .wav
+  const sfxRemote = remote.filter(r => /\.(mp3|wav|ogg)$/i.test(r.name)).map(r => ({ name: r.name, url: pagesUrlForSfx(r.name) }));
+  // dedupe by filename
+  const existing = new Set(sfxList.map(s => decodeURIComponent(s.url.split('/').pop()).toLowerCase()));
+  sfxRemote.forEach(s=>{
+    const nm = decodeURIComponent(s.name).toLowerCase();
+    if(!existing.has(nm)){ sfxList.push({ title: s.name, url: s.url }); existing.add(nm); }
+  });
+  renderSfxUI();
+}
+
+/* ============ UI Rendering ============ */
 function renderPlaylistUI(){
   trackList.innerHTML = '';
   playlistEl.innerHTML = '';
@@ -241,8 +288,26 @@ function renderPlaylistUI(){
     playlistEl.appendChild(li);
   });
 }
+function renderSfxUI(){
+  fxGrid.innerHTML = '';
+  sfxList.forEach((s, idx)=>{
+    const btn = document.createElement('button');
+    btn.className = 'sfxBtn';
+    btn.textContent = s.title;
+    btn.onclick = ()=> playSfx(s);
+    fxGrid.appendChild(btn);
+  });
+  // local uploaded sfx (blob URLs) appended after remote/pinned
+  sfxLocal.forEach(obj=>{
+    const btn = document.createElement('button');
+    btn.className = 'sfxBtn';
+    btn.textContent = obj.name;
+    btn.onclick = ()=> { obj.audio.currentTime = 0; obj.audio.volume = fxVol; obj.audio.play(); };
+    fxGrid.appendChild(btn);
+  });
+}
 
-/* ============ Load a track by index ============ */
+/* ============ Load / play main tracks ============ */
 function highlightActive(i){
   document.querySelectorAll('#playlist li').forEach(el=>el.classList.toggle('active', parseInt(el.dataset.index)===i));
   trackList.value = i;
@@ -253,16 +318,10 @@ function loadTrack(index){
   const entry = playlist[index];
   waveform.load(entry.url);
   highlightActive(index);
-  // start playing when ready
-  waveform.once('ready', ()=> {
-    waveform.play();
-    playBtn.textContent = '▶ PLAY';
-  });
+  waveform.once('ready', ()=> { waveform.play(); playBtn.textContent = '▶ PLAY'; });
 }
 
-/* ============ Play / Pause with crossfade utility ============ */
-function setWaveVolume(v){ waveform.setVolume(isMuted?0:v); }
-
+/* ============ Fade util ============ */
 function fade(from, to, dur){
   return new Promise(res => {
     const steps = 30;
@@ -279,6 +338,7 @@ function fade(from, to, dur){
   });
 }
 
+/* ============ Play / Pause ============ */
 playBtn.onclick = async () => {
   if(currentIndex === -1 && playlist.length) loadTrack(0);
   const dur = parseFloat(fadeInput.value) || 0;
@@ -292,7 +352,7 @@ pauseBtn.onclick = async () => {
   waveform.pause();
 };
 
-/* Auto crossfade at track end */
+/* Auto crossfade at track end & move to next */
 waveform.on('audioprocess', ()=> {
   const dur = waveform.getDuration() || 0;
   const cur = waveform.getCurrentTime() || 0;
@@ -300,13 +360,11 @@ waveform.on('audioprocess', ()=> {
   const fadeDur = parseFloat(fadeInput.value) || 2;
   if(!isEnding && dur > 0 && rem <= fadeDur){
     isEnding = true;
-    // protect UI briefly
     playBtn.disabled = true; pauseBtn.disabled = true;
     fade(savedVolume, 0, rem).then(()=> {
       waveform.pause();
       playBtn.disabled = false; pauseBtn.disabled = false;
       isEnding = false;
-      // next track automatically
       const next = (currentIndex + 1) % playlist.length;
       loadTrack(next);
     });
@@ -315,34 +373,27 @@ waveform.on('audioprocess', ()=> {
 
 /* ============ Volume & mute ============ */
 volumeSlider.oninput = (e) => { savedVolume = parseFloat(e.target.value); localStorage.setItem('volume', savedVolume); setWaveVolume(savedVolume); };
+function setWaveVolume(v){ waveform.setVolume(isMuted?0:v); }
 muteBtn.onclick = () => { isMuted = !isMuted; setWaveVolume(savedVolume); muteBtn.textContent = isMuted ? '🔇' : '🔊'; localStorage.setItem('muted', isMuted?'1':'0'); };
 if(localStorage.getItem('muted')==='1'){ isMuted = true; muteBtn.textContent = '🔇'; }
 
-/* ============ Track select & file upload ============ */
-trackList.onchange = ()=> {
-  const i = parseInt(trackList.value);
-  if(!isNaN(i)) loadTrack(i);
-};
+/* ============ Track select & file upload for main player ============ */
+trackList.onchange = ()=> { const i = parseInt(trackList.value); if(!isNaN(i)) loadTrack(i); };
 fileInput.onchange = (e) => {
   files = [...e.target.files];
-  // convert local uploads into playlist entries with blob URLs at top of list
   files.forEach(f=>{
     const blobUrl = URL.createObjectURL(f);
-    // push to playlist so user can play local uploads
     playlist.unshift({ title: f.name, url: blobUrl });
   });
   renderPlaylistUI();
   if(playlist.length) loadTrack(0);
 };
 
-/* ============ Save / Load playlist (localStorage for list of filenames) ============ */
+/* ============ Save / Load playlist (filenames) ============ */
 saveBtn.onclick = () => {
-  // Save only remote/pinned filenames (not blob URLs)
   const saveNames = playlist.map(p=>{
-    try {
-      const u = new URL(p.url);
-      return decodeURIComponent(u.pathname.split('/').pop());
-    } catch(e){ return null; }
+    try { const u = new URL(p.url); return decodeURIComponent(u.pathname.split('/').pop()); }
+    catch(e){ return null; }
   }).filter(Boolean);
   localStorage.setItem('live_playlist_names', JSON.stringify(saveNames));
   alert('Playlist names saved locally. Re-upload local files if needed.');
@@ -350,43 +401,60 @@ saveBtn.onclick = () => {
 loadBtn.onclick = async () => {
   const names = JSON.parse(localStorage.getItem('live_playlist_names')||'[]');
   if(!names.length){ alert('No saved playlist'); return; }
-  // rebuild playlist from saved names (map to pages urls)
-  manualPlaylist = names.map(n=>{
-    return { title: n, url: n };
-  });
+  manualPlaylist = names.map(n=>({ title: n, url: n }));
   await buildPlaylist();
   alert('Loaded saved playlist names and refreshed remote additions.');
 };
 
-/* ============ Sound Effects (FX) panel ============ */
-let fxVolume = parseFloat(fxVolumeSlider.value) || 1;
-let fxSounds = [];
-fxToggle.onclick = () => {
-  const showing = fxPanel.classList.toggle('show');
-  fxOverlay.classList.toggle('show', showing);
-  fxPanel.setAttribute('aria-hidden', showing ? 'false' : 'true');
-  mainArea.classList.toggle('hidden', showing);
-};
-fxClose.onclick = () => { fxPanel.classList.remove('show'); fxOverlay.classList.remove('show'); mainArea.classList.remove('hidden'); };
+/* ============ SFX handling: play, local upload, volume ============ */
+function playSfx(entry){
+  // entry may be remote URL or object
+  try{
+    const audio = new Audio(entry.url);
+    audio.volume = fxVol;
+    audio.play();
+  }catch(e){
+    console.warn('Failed to play SFX', e);
+  }
+}
 
 fxInput.addEventListener('change', (e) => {
   const items = Array.from(e.target.files||[]);
   items.forEach(file => {
     const url = URL.createObjectURL(file);
     const audio = new Audio(url);
-    audio.volume = fxVolume;
+    audio.volume = fxVol;
     const obj = { name: file.name, url, audio };
-    fxSounds.push(obj);
-    const btn = document.createElement('div'); btn.className = 'fxItem'; btn.textContent = file.name;
-    btn.onclick = () => { obj.audio.currentTime = 0; obj.audio.volume = fxVolume; obj.audio.play(); };
-    fxList.appendChild(btn);
-    obj.btn = btn;
+    sfxLocal.push(obj);
   });
+  renderSfxUI();
   fxInput.value = '';
 });
-fxVolumeSlider.addEventListener('input', (e) => { fxVolume = parseFloat(e.target.value); fxSounds.forEach(s=>s.audio.volume = fxVolume); });
+fxVolumeSlider.addEventListener('input', (e) => { fxVol = parseFloat(e.target.value); localStorage.setItem('fx_vol', fxVol); sfxLocal.forEach(s=>s.audio.volume = fxVol); });
 
-/* keyboard support: space toggles play/pause */
+/* ============ Drawer open/close and theme controls ============ */
+function openFxPanel(){ fxPanel.classList.add('show'); fxOverlay.classList.add('show'); fxPanel.setAttribute('aria-hidden','false'); fxOverlay.setAttribute('aria-hidden','false'); mainArea.classList.add('hidden'); }
+function closeFxPanel(){ fxPanel.classList.remove('show'); fxOverlay.classList.remove('show'); fxPanel.setAttribute('aria-hidden','true'); fxOverlay.setAttribute('aria-hidden','true'); mainArea.classList.remove('hidden'); }
+
+openSfxBtn.onclick = openFxPanel;
+fxClose.onclick = closeFxPanel;
+fxOverlay.onclick = closeFxPanel;
+document.addEventListener('keydown',(e)=>{ if(e.key==='Escape' && fxPanel.classList.contains('show')) closeFxPanel(); });
+
+/* Theme toggles */
+darkToggle.onclick = ()=> {
+  document.body.classList.toggle('dark');
+  // optionally store preference
+  localStorage.setItem('dark', document.body.classList.contains('dark') ? '1' : '0');
+};
+miniTheme.onclick = ()=> {
+  // quick accent pulse effect: temporarily change --live then revert
+  document.documentElement.style.setProperty('--live','#00e676');
+  document.documentElement.style.setProperty('--live-2','#66ffa6');
+  setTimeout(()=>{ document.documentElement.style.setProperty('--live','#ff3b6b'); document.documentElement.style.setProperty('--live-2','#ff6b94'); }, 1200);
+};
+
+/* ============ Keyboard support ============ */
 document.addEventListener('keydown', e => {
   if(e.code === 'Space' && !e.target.matches('input, textarea')) {
     e.preventDefault();
@@ -395,14 +463,18 @@ document.addEventListener('keydown', e => {
   }
 });
 
-/* ============ Initial build ============ */
+/* ============ Initial build: load playlists + sfx ============ */
 (async function init(){
-  // seed playlist from manual + remote
+  // build main playlist (manual then remote)
   await buildPlaylist();
-  // set initial UI volume and state
+  // build sfx (manual pinned + remote sfx folder)
+  await buildSfx();
+  // restore volume
   volumeSlider.value = savedVolume;
   setWaveVolume(savedVolume);
-  // if playlist has items, preload first
+  // set fx vol
+  fxVolumeSlider.value = fxVol;
+  // preload first track
   if(playlist.length) loadTrack(0);
 })();
 </script>
