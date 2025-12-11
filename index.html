@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Live Audio Dashboard</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 30px;
+    background: #f2f2f2;
+  }
+
+  img.logo {
+    height: 90px;
+    margin-bottom: 20px;
+  }
+
+  #controls button {
+    padding: 12px 20px;
+    margin: 10px;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .playlist {
+    margin-top: 25px;
+    text-align: left;
+    display: inline-block;
+    background: white;
+    padding: 15px;
+    border-radius: 12px;
+    width: 260px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.1);
+  }
+
+  .track {
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .track:hover {
+    background: #e6e6e6;
+  }
+  .active {
+    background: #d0d0d0;
+    font-weight: bold;
+  }
+
+  .slider-container {
+    margin-top: 25px;
+  }
+
+  #vol {
+    width: 200px;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- LOGO -->
+<img class="logo" src="YOUR_LOGO_URL_HERE.png" alt="Logo">
+
+<h2>Live Audio Dashboard</h2>
+
+<!-- Audio element -->
+<audio id="player"></audio>
+
+<!-- MAIN CONTROLS -->
+<div id="controls">
+  <button onclick="prevTrack()">Prev</button>
+  <button onclick="togglePlay()" id="playBtn">Play</button>
+  <button onclick="nextTrack()">Next</button>
+  <button onclick="toggleLoop()" id="loopBtn">Loop: Off</button>
+</div>
+
+<!-- VOLUME -->
+<div class="slider-container">
+  <input 
+    type="range" 
+    id="vol" 
+    min="0" 
+    max="1" 
+    step="0.01" 
+    value="1">
+  <p>Volume</p>
+</div>
+
+<!-- PLAYLIST -->
+<div class="playlist" id="playlistContainer"></div>
+
+<script>
+  const audio = document.getElementById("player");
+  const playBtn = document.getElementById("playBtn");
+  const loopBtn = document.getElementById("loopBtn");
+  const volumeSlider = document.getElementById("vol");
+  const playlistContainer = document.getElementById("playlistContainer");
+
+  // ===== PLAYLIST (edit this part) =====
+  const playlist = [
+    { title: "Track 1", url: "track1.mp3" },
+    { title: "Track 2", url: "track2.mp3" },
+    { title: "Track 3", url: "track3.mp3" }
+  ];
+  // =====================================
+
+  let currentIndex = 0;
+
+  // Create playlist UI
+  function renderPlaylist() {
+    playlistContainer.innerHTML = "";
+    playlist.forEach((track, i) => {
+      const div = document.createElement("div");
+      div.className = "track" + (i === currentIndex ? " active" : "");
+      div.innerText = track.title;
+      div.onclick = () => loadTrack(i);
+      playlistContainer.appendChild(div);
+    });
+  }
+
+  function loadTrack(index) {
+    currentIndex = index;
+    audio.src = playlist[currentIndex].url;
+    renderPlaylist();
+    audio.play();
+    playBtn.innerText = "Pause";
+  }
+
+  function togglePlay() {
+    if (audio.paused) {
+      audio.play();
+      playBtn.innerText = "Pause";
+    } else {
+      audio.pause();
+      playBtn.innerText = "Play";
+    }
+  }
+
+  function toggleLoop() {
+    audio.loop = !audio.loop;
+    loopBtn.innerText = "Loop: " + (audio.loop ? "On" : "Off");
+  }
+
+  function nextTrack() {
+    currentIndex = (currentIndex + 1) % playlist.length;
+    loadTrack(currentIndex);
+  }
+
+  function prevTrack() {
+    currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+    loadTrack(currentIndex);
+  }
+
+  // Auto play next track when finished (if loop is off)
+  audio.onended = () => {
+    if (!audio.loop) nextTrack();
+  };
+
+  // Volume
+  volumeSlider.oninput = () => {
+    audio.volume = volumeSlider.value;
+  };
+
+  // First load
+  loadTrack(0);
+</script>
+
+</body>
+</html>
