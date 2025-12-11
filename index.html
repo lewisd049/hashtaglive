@@ -3,17 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <title>#LIVE Audio Dashboard</title>
+
 <style>
   body {
+    margin: 0;
+    background: #111;
+    color: white;
     font-family: Arial, sans-serif;
     text-align: center;
-    padding: 30px;
-    background: #f2f2f2;
+    padding-bottom: 60px;
   }
 
-  img.logo {
-    height: 90px;
-    margin-bottom: 20px;
+  header {
+    padding: 20px;
+    background: linear-gradient(90deg, #ff002f, #ff7b00);
+    box-shadow: 0 0 20px rgba(255,0,0,0.4);
+  }
+
+  header img {
+    height: 100px;
+  }
+
+  h2 {
+    margin-top: 20px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
   }
 
   #controls button {
@@ -23,29 +37,40 @@
     border: none;
     border-radius: 8px;
     cursor: pointer;
+    background: #ff002f;
+    color: white;
+    transition: 0.2s;
+  }
+
+  #controls button:hover {
+    background: #ff405c;
   }
 
   .playlist {
     margin-top: 25px;
     text-align: left;
     display: inline-block;
-    background: white;
+    background: #222;
     padding: 15px;
     border-radius: 12px;
-    width: 260px;
-    box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    width: 280px;
+    box-shadow: 0 0 12px rgba(255,0,0,0.3);
   }
 
   .track {
     padding: 8px;
     border-radius: 6px;
     cursor: pointer;
+    color: #ccc;
   }
+
   .track:hover {
-    background: #e6e6e6;
+    background: #333;
   }
+
   .active {
-    background: #d0d0d0;
+    background: #ff002f;
+    color: white;
     font-weight: bold;
   }
 
@@ -61,15 +86,14 @@
 
 <body>
 
-<!-- LOGO -->
-<img class="logo" src="logo.png" alt="Logo">
+<header>
+  <img src="logo.png" alt="#LIVE Logo">
+</header>
 
-<h2>Live Audio Dashboard</h2>
+<h2>#LIVE Audio Dashboard</h2>
 
-<!-- Audio element -->
 <audio id="player"></audio>
 
-<!-- MAIN CONTROLS -->
 <div id="controls">
   <button onclick="prevTrack()">Prev</button>
   <button onclick="togglePlay()" id="playBtn">Play</button>
@@ -77,40 +101,43 @@
   <button onclick="toggleLoop()" id="loopBtn">Loop: Off</button>
 </div>
 
-<!-- VOLUME -->
 <div class="slider-container">
-  <input 
-    type="range" 
-    id="vol" 
-    min="0" 
-    max="1" 
-    step="0.01" 
-    value="1">
+  <input type="range" id="vol" min="0" max="1" step="0.01" value="1">
   <p>Volume</p>
 </div>
 
-<!-- PLAYLIST -->
-<div class="playlist" id="playlistContainer"></div>
+<div class="playlist" id="playlistContainer">Loading songs…</div>
 
 <script>
-  const audio = document.getElementById("player");
+  const SONG_REPO = "https://lewisd049.github.io/hashtaglivesongs/";
+  const player = document.getElementById("player");
   const playBtn = document.getElementById("playBtn");
   const loopBtn = document.getElementById("loopBtn");
-  const volumeSlider = document.getElementById("vol");
   const playlistContainer = document.getElementById("playlistContainer");
+  const volumeSlider = document.getElementById("vol");
 
-  // ===== PLAYLIST (edit this part) =====
-  const playlist = [
-    { title: "#LIVE SFX", url: "#LIVE SFX.mp3" },
-    { title: "#LIVE Starting Song", url: "TRACKNAMEHERE.mp3" },
-    { title: "#LIVE Theme Tune BT", url: "TRACKNAMEHERE.mp3" },
-    { title: "#LIVE Theme Tune", url: "TRACKNAMEHERE.mp3" }
-  ];
-  // =====================================
-
+  let playlist = [];
   let currentIndex = 0;
 
-  // Create playlist UI
+  async function loadSongs() {
+    try {
+      let res = await fetch(SONG_REPO);
+      let text = await res.text();
+
+      let mp3files = [...text.matchAll(/href="([^"]+\.mp3)"/g)].map(m => m[1]);
+
+      playlist = mp3files.map(f => ({
+        title: decodeURIComponent(f.replace(".mp3", "")),
+        url: SONG_REPO + f
+      }));
+
+      renderPlaylist();
+      loadTrack(0);
+    } catch (err) {
+      playlistContainer.innerHTML = "Error loading songs.";
+    }
+  }
+
   function renderPlaylist() {
     playlistContainer.innerHTML = "";
     playlist.forEach((track, i) => {
@@ -122,27 +149,22 @@
     });
   }
 
-  function loadTrack(index) {
-    currentIndex = index;
-    audio.src = playlist[currentIndex].url;
+  function loadTrack(i) {
+    currentIndex = i;
+    player.src = playlist[currentIndex].url;
     renderPlaylist();
-    audio.play();
+    player.play();
     playBtn.innerText = "Pause";
   }
 
   function togglePlay() {
-    if (audio.paused) {
-      audio.play();
+    if (player.paused) {
+      player.play();
       playBtn.innerText = "Pause";
     } else {
-      audio.pause();
+      player.pause();
       playBtn.innerText = "Play";
     }
-  }
-
-  function toggleLoop() {
-    audio.loop = !audio.loop;
-    loopBtn.innerText = "Loop: " + (audio.loop ? "On" : "Off");
   }
 
   function nextTrack() {
@@ -155,18 +177,20 @@
     loadTrack(currentIndex);
   }
 
-  // Auto play next track when finished (if loop is off)
-  audio.onended = () => {
-    if (!audio.loop) nextTrack();
+  function toggleLoop() {
+    player.loop = !player.loop;
+    loopBtn.innerText = "Loop: " + (player.loop ? "On" : "Off");
+  }
+
+  player.onended = () => {
+    if (!player.loop) nextTrack();
   };
 
-  // Volume
   volumeSlider.oninput = () => {
-    audio.volume = volumeSlider.value;
+    player.volume = volumeSlider.value;
   };
 
-  // First load
-  loadTrack(0);
+  loadSongs();
 </script>
 
 </body>
