@@ -336,7 +336,6 @@ select{
 </main>
 
 <script>
-  /* ==== MAIN PLAYER ==== */
 const waveform = WaveSurfer.create({
     container: '#waveform',
     waveColor: '#999',
@@ -373,212 +372,41 @@ const fxPanel = document.getElementById('fxPanel'),
 let files = [], isMuted = false, savedVolume = 1, isEnding = false;
 let fxVolume = parseFloat(fxVolumeSlider.value) || 1, fxSounds = [];
 
-/* ==== DARK MODE ==== */
-if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
-darkToggle.onclick = () => {
-    const v = document.body.classList.toggle('dark');
-    localStorage.setItem('darkMode', v ? 'true' : 'false');
-};
+/* DARK MODE */
+if(localStorage.getItem('darkMode')==='true') document.body.classList.add('dark');
+darkToggle.onclick = ()=>{const v=document.body.classList.toggle('dark'); localStorage.setItem('darkMode',v?'true':'false');};
 
-/* ==== VOLUME/MUTE ==== */
-if (localStorage.getItem('volume')) savedVolume = parseFloat(localStorage.getItem('volume'));
-if (localStorage.getItem('muted')) isMuted = localStorage.getItem('muted') === 'true';
-
-function updateVolume() {
-    waveform.setVolume(isMuted ? 0 : savedVolume);
-    muteBtn.textContent = isMuted ? '🔇' : '🔊';
-    localStorage.setItem('volume', savedVolume);
-    localStorage.setItem('muted', isMuted);
-}
-
-volumeSlider.oninput = e => { savedVolume = parseFloat(e.target.value); isMuted = savedVolume === 0; updateVolume(); };
-muteBtn.onclick = () => { isMuted = !isMuted; updateVolume(); };
+/* VOLUME/MUTE */
+if(localStorage.getItem('volume')) savedVolume=parseFloat(localStorage.getItem('volume'));
+if(localStorage.getItem('muted')) isMuted=localStorage.getItem('muted')==='true';
+function updateVolume(){ waveform.setVolume(isMuted?0:savedVolume); muteBtn.textContent=isMuted?'🔇':'🔊'; localStorage.setItem('volume',savedVolume); localStorage.setItem('muted',isMuted);}
+volumeSlider.oninput=e=>{savedVolume=parseFloat(e.target.value); isMuted=savedVolume===0; updateVolume();};
+muteBtn.onclick=()=>{isMuted=!isMuted; updateVolume();};
 updateVolume();
 
-/* ==== PLAYLIST ==== */
-saveBtn.onclick = () => {
-    const names = files.map(f => f.name);
-    localStorage.setItem('playlistNames', JSON.stringify(names));
-    alert('Playlist saved. Re-upload to play.');
-};
-loadBtn.onclick = () => {
-    const names = JSON.parse(localStorage.getItem('playlistNames') || '[]');
-    if (!names.length) { alert('No playlist'); return; }
-    files = [];
-    trackList.innerHTML = '';
-    playlistEl.innerHTML = '';
-    names.forEach(name => {
-        const opt = document.createElement('option');
-        opt.textContent = name + ' (re-upload)';
-        opt.disabled = true;
-        trackList.appendChild(opt);
+/* PLAYLIST */
+saveBtn.onclick=()=>{ const names=files.map(f=>f.name); localStorage.setItem('playlistNames',JSON.stringify(names)); alert('Playlist saved. Re-upload to play.'); };
+loadBtn.onclick=()=>{ const names=JSON.parse(localStorage.getItem('playlistNames')||'[]'); if(!names.length){alert('No playlist'); return;} files=[]; trackList.innerHTML=''; playlistEl.innerHTML=''; names.forEach(name=>{const opt=document.createElement('option'); opt.textContent=name+' (re-upload)'; opt.disabled=true; trackList.appendChild(opt); const li=document.createElement('li'); li.textContent=name+' (re-upload)'; playlistEl.appendChild(li); }); };
 
-        const li = document.createElement('li');
-        li.textContent = name + ' (re-upload)';
-        playlistEl.appendChild(li);
-    });
-};
+/* FILE LOAD */
+fileInput.onchange=e=>{ files=[...e.target.files]; renderTracks(); if(files.length) loadTrack(0); };
+function renderTracks(){ trackList.innerHTML=''; playlistEl.innerHTML=''; files.forEach((f,i)=>{ const opt=document.createElement('option'); opt.value=i; opt.textContent=f.name; trackList.appendChild(opt); const li=document.createElement('li'); li.textContent=f.name; li.dataset.index=i; li.onclick=()=>loadTrack(i); playlistEl.appendChild(li); }); }
+trackList.onchange=()=>{ const i=parseInt(trackList.value); if(!isNaN(i)) loadTrack(i); };
+function highlightActive(i){ document.querySelectorAll('#playlist li').forEach(el=>el.classList.toggle('active',parseInt(el.dataset.index)===i)); trackList.value=i; }
+function loadTrack(index){ const file=files[index]; if(!file) return; waveform.load(URL.createObjectURL(file.url?file.url:file)); highlightActive(index); }
 
-/* ==== FILE LOAD ==== */
-fileInput.onchange = e => { files = [...e.target.files]; renderTracks(); if (files.length) loadTrack(0); };
+/* FADE */
+function fade(from,to,dur){ return new Promise(resolve=>{ const steps=30; let c=0; const stepTime=(dur*1000)/steps; const step=()=>{ c++; let v=from+((to-from)*c/steps); waveform.setVolume(isMuted?0:v); if(c<steps) setTimeout(step,stepTime); else resolve(); }; step(); });}
 
-function renderTracks() {
-    trackList.innerHTML = '';
-    playlistEl.innerHTML = '';
-    files.forEach((f, i) => {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = f.name;
-        trackList.appendChild(opt);
+/* PLAY/PAUSE */
+playBtn.onclick=async()=>{ if(isEnding) return; const dur=parseFloat(fadeInput.value)||0; waveform.setVolume(0); waveform.play(); await fade(0,isMuted?0:savedVolume,dur); };
+pauseBtn.onclick=async()=>{ if(isEnding) return; const dur=parseFloat(fadeInput.value)||0; await fade(isMuted?0:savedVolume,0,dur); waveform.pause(); };
 
-        const li = document.createElement('li');
-        li.textContent = f.name;
-        li.dataset.index = i;
-        li.onclick = () => loadTrack(i);
-        playlistEl.appendChild(li);
-    });
-}
+/* AUTO FADE END */
+waveform.on('audioprocess',()=>{ const dur=waveform.getDuration()||0, cur=waveform.getCurrentTime()||0; const rem=dur-cur, fadeDur=parseFloat(fadeInput.value)||2; if(!isEnding&&dur>0&&rem<=fadeDur){ isEnding=true; playBtn.disabled=true; pauseBtn.disabled=true; fade(savedVolume,0,rem).then(()=>{ waveform.pause(); playBtn.disabled=false; pauseBtn.disabled=false; isEnding=false; });}});
 
-trackList.onchange = () => {
-    const i = parseInt(trackList.value);
-    if (!isNaN(i)) loadTrack(i);
-};
-
-function highlightActive(i) {
-    document.querySelectorAll('#playlist li').forEach(el => el.classList.toggle('active', parseInt(el.dataset.index) === i));
-    trackList.value = i;
-}
-
-function loadTrack(index) {
-    const file = files[index];
-    if (!file) return;
-    waveform.load(URL.createObjectURL(file));
-    highlightActive(index);
-}
-
-/* ==== FADE UTILITY ==== */
-function fade(from, to, dur) {
-    return new Promise(resolve => {
-        const steps = 30;
-        let c = 0;
-        const stepTime = (dur * 1000) / steps;
-        const step = () => {
-            c++;
-            let v = from + ((to - from) * c / steps);
-            waveform.setVolume(isMuted ? 0 : v);
-            if (c < steps) setTimeout(step, stepTime); else resolve();
-        };
-        step();
-    });
-}
-
-/* ==== PLAY/PAUSE ==== */
-playBtn.onclick = async () => {
-    if (isEnding) return;
-    const dur = parseFloat(fadeInput.value) || 0;
-    waveform.setVolume(0);
-    waveform.play();
-    await fade(0, isMuted ? 0 : savedVolume, dur);
-};
-
-pauseBtn.onclick = async () => {
-    if (isEnding) return;
-    const dur = parseFloat(fadeInput.value) || 0;
-    await fade(isMuted ? 0 : savedVolume, 0, dur);
-    waveform.pause();
-};
-
-/* ==== AUTO FADE END ==== */
-waveform.on('audioprocess', () => {
-    const dur = waveform.getDuration() || 0, cur = waveform.getCurrentTime() || 0;
-    const rem = dur - cur, fadeDur = parseFloat(fadeInput.value) || 2;
-    if (!isEnding && dur > 0 && rem <= fadeDur) {
-        isEnding = true;
-        playBtn.disabled = true; pauseBtn.disabled = true;
-        fade(savedVolume, 0, rem).then(() => {
-            waveform.pause();
-            playBtn.disabled = false; pauseBtn.disabled = false;
-            isEnding = false;
-        });
-    }
-});
-
-/* ==== FX PANEL OPEN/CLOSE ==== */
-function openFxPanel() { fxPanel.classList.add('show'); fxOverlay.classList.add('show'); mainArea.classList.add('hidden'); }
-function closeFxPanel() { fxPanel.classList.remove('show'); fxOverlay.classList.remove('show'); mainArea.classList.remove('hidden'); }
-
-openSfxBtn.onclick = openFxPanel;
-fxClose.onclick = closeFxPanel;
-fxOverlay.onclick = closeFxPanel;
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && fxPanel.classList.contains('show')) closeFxPanel(); });
-
-/* ==== FX AUDIO LOAD ==== */
-fxInput.addEventListener('change', e => {
-    const items = Array.from(e.target.files || []);
-    items.forEach(file => {
-        const url = URL.createObjectURL(file);
-        const audio = new Audio(url);
-        audio.volume = fxVolume;
-        const obj = { name: file.name, url, audio };
-        fxSounds.push(obj);
-
-        const btn = document.createElement('div');
-        btn.className = 'fxBtn';
-        btn.textContent = file.name;
-        btn.onclick = () => { obj.audio.currentTime = 0; obj.audio.volume = fxVolume; obj.audio.play(); };
-        sfxGrid.appendChild(btn);
-        obj.btn = btn;
-    });
-    fxInput.value = '';
-});
-
-fxVolumeSlider.addEventListener('input', e => {
-    fxVolume = parseFloat(e.target.value);
-    fxSounds.forEach(s => s.audio.volume = fxVolume);
-});
-
-/* ==== AUTO FIND SFX + SONGS ==== */
-async function fetchRemoteFiles(path, callback) {
-    try {
-        const res = await fetch(path);
-        const html = await res.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const links = Array.from(doc.querySelectorAll('a')).map(a => a.href).filter(h => h.endsWith('.mp3'));
-        links.forEach(url => callback(url));
-    } catch (err) { console.warn('Failed to fetch remote files', path, err); }
-}
-
-// Auto-load songs
-fetchRemoteFiles('/hashtaglivesongs/', url => {
-    const name = url.split('/').pop();
-    const opt = document.createElement('option');
-    opt.textContent = name;
-    trackList.appendChild(opt);
-
-    const li = document.createElement('li');
-    li.textContent = name;
-    playlistEl.appendChild(li);
-    files.push({ name, url });
-});
-
-// Auto-load SFX
-fetchRemoteFiles('/hashtaglivesongs/sfx/', url => {
-    const name = url.split('/').pop();
-    const audio = new Audio(url);
-    audio.volume = fxVolume;
-
-    const obj = { name, url, audio };
-    fxSounds.push(obj);
-
-    const btn = document.createElement('div');
-    btn.className = 'sfxBtn';
-    btn.textContent = name;
-    btn.onclick = () => { obj.audio.currentTime = 0; obj.audio.volume = fxVolume; obj.audio.play(); };
-    sfxGrid.appendChild(btn);
-    obj.btn = btn;
-});
-</script>
-
-</body>
-</html>
+/* FX PANEL */
+function openFxPanel(){fxPanel.classList.add('show'); fxOverlay.classList.add('show'); mainArea.classList.add('hidden');}
+function closeFxPanel(){fxPanel.classList.remove('show'); fxOverlay.classList.remove('show'); mainArea.classList.remove('hidden');}
+openSfxBtn.onclick=openFxPanel; fxClose.onclick=closeFxPanel; fxOverlay.onclick=closeFxPanel;
+document.addEventListener('keydown',e=>{
